@@ -82,7 +82,7 @@ LISPにおいては、関数呼出はその引数をすべて評価(計算)し�
 
 重要な特殊形式をあと1つ紹介します。{\fixed (defun name argument-list result)}は関数{\fixed name}
 を定義します。関数の引数リストは{\fixed argument-list}で、その計算が{\fixed result}のリストで表わされます。
-図\ref{fig:fibonacci}は階乗を計算する例です。二項演算や比較も関数の形式で書きます。
+図\ref{fig:factorial}は階乗を計算する例です。二項演算や比較も関数の形式で書きます。
 
 \begin{figure}[htbp]
 \centering
@@ -93,7 +93,7 @@ LISPにおいては、関数呼出はその引数をすべて評価(計算)し�
       (* n (factorial (- n 1)))))
 \end{lstlisting}
 \caption{LISPによる階乗計算の例}
-\label{fig:fibonacci}
+\label{fig:factorial}
 \end{figure}
 
 \subsection{論理型プログラミング}
@@ -246,5 +246,135 @@ Prolog処理系(インタープリタ)がプログラム(事実とルール)と�
 {\fixed 　兄弟(X, Y):-親子(Z, X), 親子(Z, Y), 異なる(X, Y). } \\
 
 とすると良いかもしれません。
+
+\section{メタプログラミングについて}
+メタプログラミングとは、プログラムを扱うプログラミングのことです。
+ILP(帰納論理プログラミング)は広く見るとメタプログラミングの一分野です。
+メタプログラミングを分類すると図\ref{fig:metaprogramming}のようになっています。
+
+\begin{figure}[htbp]
+\centering
+\begin{forest}
+  for tree={grow'=0, l sep=3.0em, s sep=0.4em, anchor=west, child anchor=west, edge path={\noexpand\path[\forestoption{edge}] (!u.parent anchor) -- +(50pt,0) |- (.child anchor)\forestoption{edge label};}, tier/.wrap pgfmath arg={tier #1}{level()}}
+  [メタプログラミング
+    [マクロ]
+    [テンプレート]
+    [リフレクション]
+    [自動プログラミング
+      [帰納Ｐ 　
+         [帰納関数Ｐ]
+         [帰納論理Ｐ]
+      ]
+      [遺伝的Ｐ]
+      [プログラム合成]
+    ]
+  ]
+\end{forest}
+\caption{メタプログラミングの分類(横幅の都合でプログラミングを一部Ｐと略)}
+\label{fig:metaprogramming}
+\end{figure}
+
+\subsection{マクロ}
+マクロとは、プログラムの構文やや機能を自分で定義したり、拡張したりすることができる仕組のことです。
+以下にLISP言語のマクロの定義の例を見てみます。これはifと反対の意味をもつ特殊形式の定義です。
+関数の定義と似ていますが、関数の場合は引数を先に計算しますが、
+特殊形式では引数は必要になってから計算します。
+
+\begin{figure}[htbp]
+\centering
+\begin{lstlisting}[language=Lisp]
+(defun if-not (condition then else)
+  `(if ,condition ,else ,then))
+\end{lstlisting}
+\caption{LISPによるマクロの例}
+\label{fig:macro}
+\end{figure}
+
+これは単純すぎる例ですが、マクロを使ってプログラムの見た目を簡単にして見通しよくすることが可能になります。
+
+\subsection{テンプレート}
+テンプレートは、C++のような強い型付けされた言語において型やや構造を汎用的に扱うための仕組みです。テンプレートを使うと、同じような処理を異なる型やや構造に適用できます。
+
+\begin{figure}[htbp]
+\centering
+\begin{lstlisting}[language=C++]
+template <typename T>
+T add(T a, T b) {
+  return a + b;
+}}
+\end{lstlisting}
+\caption{C++によるテンプレートの例}
+\label{fig:template}
+\end{figure}
+
+これは{\fixed add()}関数を定義した例です。演算子+が定義されていて、同じ型の値を返すようになっている型なら、
+組み込みの型でなくとも、すべての型で{\fixed add()}関数が定義できます。これは関数の例ですが、
+クラスもテンプレートで定義できます。C++はコンパイラなので機械語に翻訳されますが、そのときに整数の加算、
+浮動小数点の加算などは別々の機械語になります。C++コンパイラはこの関数が、
+それぞれの型で呼ばれることを検出して、それぞれの型専用の{\fixed add()}関数を作ります。
+
+似た機能は、JavaやPythonのgenericsでも実現されます。これらの言語は動的に型を扱うので、
+一つのgenericsクラスや関数が複数の型に対応することになります。
+
+\subsection{リフレクション}
+リフレクションとはプログラムの状態や動作をプログラムから調べたり変更したりすることです。
+例えば、
+
+\begin{figure}[htbp]
+\centering
+\begin{lstlisting}[language=python]
+from inspect import getmembers, isroutine
+
+def operate_to_str(s, op):
+  methods = [f for f in getmembers(str, isroutine) if f[0] == op]
+  if len(methods) < 1:
+     print("str has no such op: ", op)
+     return
+  invoker = getattr(s, methods[0][0])
+  print(invoker())  
+
+operate_to_str("abc", "upper")
+operate_to_str("ABC", "lower")
+operate_to_str("  ABC  ", "strip")
+
+\end{lstlisting}
+\caption{Pythonによるリフレクションの例}
+\label{fig:dynamic_gen}
+\end{figure}
+
+これで関数{\fixed operate\_to\_str()}が呼ばれると変数{\fixed method}には変数{\fixed op}で指定した
+{\fixed str()}のメソッドが入ります。そして変数{\fixed invoker}にはそのメソッドに変数{\fixed s}
+を入れて呼び出すという手続きが入ります。最後にその手続きを実行します。
+変数{\fixed op}の値はプログラム実行時にファイルやキーボードから入力した値でも良いことに注意して下さい。
+
+\subsection{自動プログラミング}
+自動プログラミングとは、人間がプログラムを書くのではなく、
+何らかの機構によってプログラムを生成することを指すのですが、主に帰納プログラミング、
+遺伝的プログラミング、プログラム合成などが研究されている。
+
+\subsubsection{遺伝的プログラミング}
+
+遺伝的プログラミングでは、自然界の「適者生存」の原理を模倣します。まず、問題を解決するための多くのランダムな「プログラム」を生成します。これらのプログラムは、生物の「遺伝子」のようなものです。
+
+次に、これらのプログラムを評価して問題をどれだけうまく解決できるかを比較し、優秀なものを選択して次の世代に「遺伝」します。新しい世代では「突然変異」や「交叉」（2つのプログラムが組み合わさって新しいプログラムを作る）を行います。これを最適なプログラムが見つかるまで何世代にもわたって繰り返します。
+
+\subsubsection{プログラム合成}
+プログラム合成は、人間がプログラムの仕様を入力し、
+それを元にコンピュータがプログラムを生成する方法です。
+
+最近ではChatGPTに仕様を伝えてプログラムを作ってもらうのがここに入ります。
+
+\subsubsection{帰納プログラミング}
+帰納プログラミングは、一連の入力とそれに対応する出力の例を「訓練データ」としてそのパターンを学習し、
+新しい入力に対する出力を予測するプログラムを生成する方法です。
+
+例えば一連の数値（例えば、1, 2, 3, 4, 5）とそれに対応する出力（例えば、2, 4, 6, 8, 10）があるとすると、
+これから、入力の数値を2倍にするパターンであると学習し、新しい入力（例えば、6）に対する出力
+（この場合、12）を予測するプログラムを生成するものです。
+
+帰納プログラミングで扱うプログラミング言語が、LISPやHaskellなどの関数型プログラミング言語の場合を、
+帰納関数プログラミングと言い、Prologなどの論理型プログラミング言語の場合を、
+帰納論理プログラミングと言います。
+
 
 \end{document}
